@@ -1,20 +1,26 @@
 const {BorrowedComponent, Component, sequelize} = require('../models')
 
-module.exports.getBorrowers = async (req, res)=>{
+module.exports.getBorrowers = async (req, res) => {
+  try {
+    const borrowers = await BorrowedComponent.findAll({
+      include: [{
+        model: Component,
+        as: 'component',
+        attributes: ['componentName', 'partNumber', 'componentType', 'quantity', 'status', 'condition']
+      }]
+    });
 
-    try{
-        const borrowers =  await BorrowedComponent.findAll();
-        
-        if(! borrowers){
-            res.status(404).json("message : No borrowers found")
-        }
-
-        res.status(200).json(borrowers)
-
-    }catch(error){
-
+    if (!borrowers.length) {
+      return res.status(404).json({ message: "No borrowers found" });
     }
-}
+    console.log(borrowers)
+
+    res.status(200).json(borrowers);
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ message: "Internal server error" });
+  }
+};
 
 module.exports.postBorrowers = async (req, res) => {
     console.log(req.body);

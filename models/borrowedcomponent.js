@@ -16,7 +16,8 @@ module.exports = (sequelize, DataTypes) => {
 
       BorrowedComponent.belongsTo(models.Component, {
         foreignKey: 'componentUUID',
-        targetKey: 'uuid'
+        targetKey: 'uuid',
+        as: 'component'
       });
     
     }

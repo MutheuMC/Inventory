@@ -1,36 +1,76 @@
-const { where } = require('sequelize')
+// const { where } = require('sequelize')
 const { Component, sequelize }  = require('../models')
+const {Op} = require('sequelize')
 
-module.exports.getComponents = async (req, res)=>{
-    const componentType = req.params.componentsType
-    // console.log(componentType)
-    try{
+module.exports.getComponents = async (req, res) => {
+  const componentType = req.params.componentsType;
+  const partNumber = req.query.q;
+  console.log(partNumber);
 
-        const components = await Component.findAll({where : {componentType: componentType}})
-
-        if (!components & components.length == 0){
-            res.status(404).json({"message": "No components Found"})
-        
+  let components;
+  try {
+    if (partNumber) {
+      components = await Component.findAndCountAll({
+        where: {
+          componentType: componentType,
+          partNumber: {
+            [Op.iLike]: `%${partNumber}%`
+          }
         }
-        else{
-        res.status(200).json(components)
-
+      });
+    } else {
+      components = await Component.findAndCountAll({
+        where: {
+          componentType: componentType
         }
-
-
-    }catch(error){
-
+      });
     }
-}
+
+    if (!components || components.length === 0) {
+      res.status(404).json({ "message": "No components Found" });
+    } else {
+      res.status(200).json(components);
+    }
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ "message": "Internal server error" });
+  }
+};
+
+
+
 
 module.exports.getComponentsType = async (req, res) => {
+  const name = req.query.q;
+  let components
+
     try {
-      const components = await Component.findAll({
+
+      if (name){
+        components = await Component.findAndCountAll({
+          where:{
+            componentType:{
+              [Op.iLike]: `%${name}%`  // Use Op.iLike for case-insensitive search
+            }
+          },
+          attributes: ['componentType', [sequelize.fn('sum', sequelize.col('quantity')), 'totalQuantity']],
+          group: ['componentType'],
+
+        })
+
+        // console.log(components)
+      }
+      else{
+      components = await Component.findAndCountAll({
         attributes: ['componentType', [sequelize.fn('sum', sequelize.col('quantity')), 'totalQuantity']],
         group: ['componentType'],
       });
+
+      // console.log(components)
+
+    }
   
-      if (components.length > 0) {
+      if (components.rows.length > 0) {
         // console.log(components)
         res.status(200).json(components);
       } else {
