@@ -48,7 +48,7 @@ module.exports = {
       },
       actualReturnDate: {
         type: Sequelize.DATE,
-        allowNull: false,
+        allowNull: true,
 
       },
       purpose: {

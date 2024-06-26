@@ -76,7 +76,7 @@ module.exports = (sequelize, DataTypes) => {
     actualReturnDate:
     {
       type:DataTypes.DATE,
-      allowNull:false,
+      allowNull:true,
 
     },
     purpose: 
