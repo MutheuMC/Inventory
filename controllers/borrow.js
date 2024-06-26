@@ -95,3 +95,25 @@ module.exports.postBorrowers = async (req, res) => {
     }
   };
 
+  module.exports.getBorrowedComponentById = async (req, res)=>{
+    const uuid = req.params.id
+
+    try{
+      const borrowersComponent = await BorrowedComponent.findOne({
+        where: { uuid: uuid},
+        include: [{
+          model: Component,
+          as: 'component',
+          attributes: ['componentName', 'partNumber', 'componentType', 'quantity', 'status', 'condition']
+        }]
+      })
+
+      if (!borrowersComponent){
+        res.status(404).json({"message": "borrower not found"})
+      }
+      res.status(200).json(borrowersComponent)
+    }catch(error){
+      res.status(500).json({"error": error.message})
+    }
+  }
+
