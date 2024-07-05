@@ -6,6 +6,7 @@ const componentsRouter = require('./routes/component')
 const borrowRouter = require('./routes/borrow')
 const notificationsRouter = require('./routes/notification')
 const notificationRoutes = require('./routes/job'); // Adjust the path as necessary
+const categoriesRouter = require('./routes/categories')
 
 
 app.use(express.json())
@@ -13,7 +14,8 @@ app.use(cors())
 app.use('/components', componentsRouter);
 app.use('/borrow', borrowRouter)
 app.use('/notifications', notificationsRouter)
-// app.use('/job', notificationRoutes)
+app.use('/categories', categoriesRouter)
+app.use('/job', notificationRoutes)
 
 
 

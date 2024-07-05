@@ -33,6 +33,7 @@ module.exports.postBorrowers = async (req, res) => {
       departmentName,
       dateOfIssue,
       actualReturnDate,
+      quantity,
       expectedReturnDate,
       purpose,
       reasonForBorrowing,
@@ -50,6 +51,7 @@ module.exports.postBorrowers = async (req, res) => {
           borrowerContact,
           departmentName,
           dateOfIssue,
+          quantity,
           actualReturnDate,
           expectedReturnDate,
           purpose,
@@ -76,7 +78,9 @@ module.exports.postBorrowers = async (req, res) => {
         return res.status(400).json({ message: "Insufficient component quantity" });
       }
   
-      component.quantity -= 1;
+      component.quantity -= quantity;
+
+      console.log(component.quantity)
   
       // Update the status if the quantity is 0
       if (component.quantity === 0) {
@@ -117,3 +121,15 @@ module.exports.postBorrowers = async (req, res) => {
     }
   }
 
+module.exports.updateBorrowedComponents = async(req, res)=>{
+const uuid = req.params.id
+const {} = req.body 
+
+      try{
+        const updateBorrowersComponent =  await BorrowedComponent.update()
+
+      }catch(error){
+        res.status(500).json({message:  error.message})
+      }
+
+}

@@ -1,7 +1,7 @@
 const { BorrowedComponent, Notification } = require('../models');
 const { Op } = require('sequelize');
 
-const checkForUpcomingReturnDates = async () => {
+module.exports.checkForUpcomingReturnDates = async () => {
   try {
     const upcomingBorrows = await BorrowedComponent.findAll({
       where: {
@@ -10,10 +10,11 @@ const checkForUpcomingReturnDates = async () => {
         }
       }
     });
+    console.log(upcomingBorrows)
 
     for (const borrow of upcomingBorrows) {
-      const message = `Return date for ${borrow.fullName} is approaching on ${borrow.expectedReturnDate.replace(/ \(.*\)/, '')}.`;
-      // const message = `Return date for ${borrow.fullName} is approaching on ${borrow.expectedReturnDate}.`;
+      // const message = `Return date for ${borrow.fullName} is approaching on ${borrow.expectedReturnDate.replace(/ \(.*\)/, '')}.`;
+      const message = `Return date for ${borrow.fullName} is approaching on ${borrow.expectedReturnDate}.`;
       await Notification.create({ message, isRead: false });
     }
   } catch (error) {
@@ -25,4 +26,4 @@ const checkForUpcomingReturnDates = async () => {
 // checkForUpcomingReturnDates();
 
 // Run daily
-setInterval(checkForUpcomingReturnDates, 24 * 60 * 60 * 1000);
+// setInterval(checkForUpcomingReturnDates, 24 * 60 * 60 * 1000);

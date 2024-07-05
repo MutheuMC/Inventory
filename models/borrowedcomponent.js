@@ -60,6 +60,12 @@ module.exports = (sequelize, DataTypes) => {
         key: 'uuid'
       }
     },
+    quantity:{
+      type: Sequelize.INTEGER,
+      allowNull:false
+
+
+    },
     dateOfIssue: 
     {
       type:DataTypes.DATE,

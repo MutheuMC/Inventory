@@ -7,7 +7,7 @@ router.post('/trigger-notification-check', async (req, res) => {
     await checkForUpcomingReturnDates();
     res.status(200).send('Notification check triggered successfully');
   } catch (error) {
-    console.error('Error triggering notification check:', error);
+    console.error('Error triggering notification check:', error.message);
     res.status(500).send('Failed to trigger notification check');
   }
 });

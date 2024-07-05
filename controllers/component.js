@@ -1,14 +1,15 @@
 // const { where } = require('sequelize')
-const { Component, sequelize }  = require('../models')
-const {Op} = require('sequelize')
+const { Component, ComponentsQuantity, BorrowedComponent, sequelize  }  = require('../models')
+
+const { Op, fn, col } = require('sequelize');
+
 
 module.exports.getComponents = async (req, res) => {
   const componentType = req.params.componentsType;
   const partNumber = req.query.q;
-  console.log(partNumber);
 
-  let components;
   try {
+    let components;
     if (partNumber) {
       components = await Component.findAndCountAll({
         where: {
@@ -26,11 +27,31 @@ module.exports.getComponents = async (req, res) => {
       });
     }
 
-    if (!components || components.length === 0) {
-      res.status(404).json({ "message": "No components Found" });
-    } else {
-      res.status(200).json(components);
+    if (!components || components.rows.length === 0) {
+      return res.status(404).json({ "message": "No components Found" });
     }
+
+    const componentData = await Promise.all(components.rows.map(async (component) => {
+      const totalQuantityResult = await ComponentsQuantity.sum('quantity', {
+        where: { componentUUID: component.uuid }
+      });
+      const borrowedQuantityResult = await BorrowedComponent.sum('quantity', {
+        where: { componentUUID: component.uuid }
+      });
+
+      const totalQuantity = totalQuantityResult || 0;
+      const borrowedQuantity = borrowedQuantityResult || 0;
+      const remainingQuantity = totalQuantity - borrowedQuantity;
+
+      return {
+        ...component.toJSON(),
+        totalQuantity,
+        borrowedQuantity,
+        remainingQuantity
+      };
+    }));
+
+    res.status(200).json({ count: components.count, rows: componentData });
   } catch (error) {
     console.error(error);
     res.status(500).json({ "message": "Internal server error" });
@@ -39,97 +60,186 @@ module.exports.getComponents = async (req, res) => {
 
 
 
-
 module.exports.getComponentsType = async (req, res) => {
   const name = req.query.q;
-  let components
+  let components;
 
-    try {
-
-      if (name){
-        components = await Component.findAndCountAll({
-          where:{
-            componentType:{
-              [Op.iLike]: `%${name}%`  // Use Op.iLike for case-insensitive search
-            }
+  try {
+    if (name) {
+      components = await Component.findAll({
+        attributes: [
+          'componentType',
+          [sequelize.fn('sum', sequelize.col('ComponentsQuantities.quantity')), 'totalQuantity'],
+          [sequelize.fn('sum', sequelize.col('BorrowedComponents.quantity')), 'totalBorrowedQuantity'],
+        ],
+        include: [
+          {
+            model: ComponentsQuantity,
+            attributes: [],  // No need to include quantity data from this join
           },
-          attributes: ['componentType', [sequelize.fn('sum', sequelize.col('quantity')), 'totalQuantity']],
-          group: ['componentType'],
-
-        })
-
-        // console.log(components)
-      }
-      else{
-      components = await Component.findAndCountAll({
-        attributes: ['componentType', [sequelize.fn('sum', sequelize.col('quantity')), 'totalQuantity']],
+          {
+            model: BorrowedComponent,
+            attributes: [],  // No need to include quantity data from this join
+          },
+        ],
         group: ['componentType'],
+        where: {
+          componentType: {
+            [Op.iLike]: `%${name}%`
+          }
+        },
+        raw: true,  // Return plain data objects
       });
 
-      // console.log(components)
-
-    }
-  
-      if (components.rows.length > 0) {
-        // console.log(components)
-        res.status(200).json(components);
-      } else {
-        res.status(404).json({ message: "No components found" });
-      }
-    } catch (error) {
-      console.error(error);
-      res.status(500).json({ message: "Internal server error" });
-    }
-  };
-
-module.exports.createComponent = async(req, res)=>{
-    const {componentName, componentType, partNumber, quantity, status, condition, conditionDetails} = req.body
-
-    try{
-        const component = await Component.create({componentName,componentType, partNumber, quantity, status, condition, conditionDetails})
-
-        if (component){
-            res.status(200).json({"message" : "Component created successfully"})
-        }else{
-            res.status(404).json({"message" :"error"})
-        }
-
-    }catch(error){
-        console.log(error)
-    }
-    
-}
-module.exports.updateComponent = async (req, res) => {
-    const id = req.params.id;
-    const { componentName, componentType, partNumber, quantity, status, condition, conditionDetails } = req.body;
-  
-    try {
-      const component = await Component.findOne({ where: { uuid: id } });
-  
-      if (component) {
-        await Component.update(
+    } else {
+      components = await Component.findAll({
+        attributes: [
+          'componentType',
+          [sequelize.fn('sum', sequelize.col('ComponentsQuantities.quantity')), 'totalQuantity'],
+          [sequelize.fn('sum', sequelize.col('BorrowedComponents.quantity')), 'totalBorrowedQuantity'],
+        ],
+        include: [
           {
-            componentName: componentName || component.componentName,
-            componentType: componentType || component.componentType,
-            partNumber: partNumber || component.partNumber,
-            quantity: quantity || component.quantity,
-            status: status !== undefined ? status : component.status,
-            condition: condition !== undefined ? condition : component.condition,
-            conditionDetails: conditionDetails || component.conditionDetails,
+            model: ComponentsQuantity,
+            attributes: [],  // No need to include quantity data from this join
           },
           {
-            where: { uuid: id }
-          }
-        );
-  
-        res.status(200).json({ message: "Component updated successfully" });
-      } else {
-        res.status(404).json({ message: "Component not found" });
-      }
-    } catch (error) {
-      res.status(500).json({ message: error.message });
+            model: BorrowedComponent,
+            attributes: [],  // No need to include quantity data from this join
+          },
+        ],
+        group: ['componentType'],
+        raw: true,  // Return plain data objects
+      });
     }
-  };
+
+    // Process data to include remainingQuantity
+    const result = components.map(component => ({
+      componentType: component.componentType,
+      totalQuantity: component.totalQuantity || 0,
+      borrowedQuantity: component.totalBorrowedQuantity || 0,
+      remainingQuantity: (component.totalQuantity || 0) - (component.totalBorrowedQuantity || 0),
+    }));
+
+    if (result.length > 0) {
+      res.status(200).json(result);
+    } else {
+      res.status(404).json({ message: "No components found" });
+    }
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ message: "Internal server error" });
+  }
+};
+
+
+  module.exports.createComponent = async (req, res) => {
+    const { componentName, componentType, partNumber, quantity, status, condition, conditionDetails } = req.body;
+
+    const transaction = await sequelize.transaction();
+
+    try {
+        const component = await Component.create(
+            { componentName, componentType, partNumber, status, condition, conditionDetails },
+            { transaction }
+        );
+
+        if (component) {
+            await ComponentsQuantity.create(
+                { componentUUID: component.uuid, quantity },
+                { transaction }
+            );
+
+            await transaction.commit();
+
+            res.status(200).json({ "message": "Component created successfully" });
+        } else {
+            await transaction.rollback();
+            res.status(404).json({ "message": "Error creating component" });
+        }
+    } catch (error) {
+        await transaction.rollback();
+        console.log(error);
+        res.status(500).json({ "message": "An error occurred" });
+    }
+};
+module.exports.updateComponent = async (req, res) => {
+  const id = req.params.id;
+  const { componentName, componentType, partNumber, quantity, status, condition, conditionDetails } = req.body;
+
+  const transaction = await sequelize.transaction();
+
+  try {
+      // Find the component by UUID
+      const component = await Component.findOne({ where: { uuid: id }, transaction });
+
+      if (component) {
+          // Update the component details
+          await Component.update(
+              {
+                  componentName: componentName || component.componentName,
+                  componentType: componentType || component.componentType,
+                  partNumber: partNumber || component.partNumber,
+                  quantity: quantity !== undefined ? quantity : component.quantity,
+                  status: status !== undefined ? status : component.status,
+                  condition: condition !== undefined ? condition : component.condition,
+                  conditionDetails: conditionDetails || component.conditionDetails,
+              },
+              {
+                  where: { uuid: id },
+                  transaction
+              }
+          );
+          if (quantity !== undefined) {
+              await ComponentsQuantity.create(
+                  {
+                      componentId: id,
+                      quantity,
+                  },
+                  {
+                      transaction
+                  }
+              );
+          }
+
+          // Commit the transaction
+          await transaction.commit();
+
+          res.status(200).json({ message: "Component updated successfully" });
+      } else {
+          // If component is not found, rollback the transaction
+          await transaction.rollback();
+          res.status(404).json({ message: "Component not found" });
+      }
+  } catch (error) {
+      // If an error occurred, rollback the transaction
+      await transaction.rollback();
+      console.log(error);
+      res.status(500).json({ message: error.message });
+  }
+};
+
+module.exports.updateComponentQuantity = async (req, res)=>{
+  const componentId = req.params.id;
+  const quantity = req.body.quantity
+
+  try{
+  const quantityEntry = await ComponentsQuantity.create({componentId, quantity})
+  if(!quantityEntry){
+    res.status(400).json({message: "Cannot create  quantity"})
+  }
+
+  res.status(200).json({message : "quantity created successfully"})
+
+  }catch(error){
+    res.status(500).json({ message: error.message });
+
+  }
+
+
+
+
+}
 
 module.exports.getComponentById = async (req, res)=>{
     const id = req.params.id

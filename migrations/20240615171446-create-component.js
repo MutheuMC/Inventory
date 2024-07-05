@@ -35,9 +35,19 @@ module.exports = {
         unique:true
 
       },
-      quantity: {
+      borrowedQuantity: {
         type: Sequelize.INTEGER,
-        allowNull:false,
+        allowNull:true,
+
+      },
+      totalQuantity: {
+        type: Sequelize.INTEGER,
+        allowNull:true,
+
+      },
+      remainingQuantity: {
+        type: Sequelize.INTEGER,
+        allowNull:true,
 
       },
       status:{
