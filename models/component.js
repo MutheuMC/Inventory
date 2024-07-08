@@ -33,8 +33,8 @@ module.exports = (sequelize, DataTypes) => {
     },
     partNumber: {
       type: DataTypes.STRING,
-      allowNull: false,
-      unique: true,
+      allowNull: true,
+      unique: false,
     },
     totalQuantity: {
       type: DataTypes.INTEGER,

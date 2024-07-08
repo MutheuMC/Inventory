@@ -4,6 +4,9 @@ const { Component, ComponentsQuantity, BorrowedComponent, sequelize  }  = requir
 const { Op, fn, col } = require('sequelize');
 
 
+
+
+
 module.exports.getComponents = async (req, res) => {
   const componentType = req.params.componentsType;
   const partNumber = req.query.q;
@@ -60,9 +63,49 @@ module.exports.getComponents = async (req, res) => {
 
 
 
+module.exports.updateComponentQuantity = async (req, res) => {
+    const componentId = req.params.id;
+    // console.log(c)
+    const { quantity } = req.body;
+
+    console.log("Component ID: ", componentId);
+
+    const transaction = await sequelize.transaction();
+
+    try {
+      const component = await Component.findOne({ where: { uuid: componentId }, transaction });
+
+      if (component) {
+        await ComponentsQuantity.create(
+          {
+            componentUUID: componentId,
+            quantity,
+          },
+          {
+            transaction
+          }
+        );
+
+        await transaction.commit();
+
+        res.status(200).json({ message: "Quantity updated successfully" });
+      } else {
+        await transaction.rollback();
+        res.status(404).json({ message: "Component not found" });
+      }
+    } catch (error) {
+      await transaction.rollback();
+      console.log(error);
+      res.status(500).json({ message: error.message });
+    }
+  },
+
+
+
 module.exports.getComponentsType = async (req, res) => {
   const name = req.query.q;
   let components;
+  console.log("running")
 
   try {
     if (name) {
@@ -122,6 +165,7 @@ module.exports.getComponentsType = async (req, res) => {
     }));
 
     if (result.length > 0) {
+      console.log(result)
       res.status(200).json(result);
     } else {
       res.status(404).json({ message: "No components found" });
@@ -219,27 +263,44 @@ module.exports.updateComponent = async (req, res) => {
   }
 };
 
-module.exports.updateComponentQuantity = async (req, res)=>{
-  const componentId = req.params.id;
-  const quantity = req.body.quantity
+module.exports.updateComponentQuantity= async (req, res) => {
+    const componentId = req.params.id;
+    const { quantity } = req.body;
 
-  try{
-  const quantityEntry = await ComponentsQuantity.create({componentId, quantity})
-  if(!quantityEntry){
-    res.status(400).json({message: "Cannot create  quantity"})
-  }
+    console.log("Component ID: ", componentId);
 
-  res.status(200).json({message : "quantity created successfully"})
+    const transaction = await sequelize.transaction();
 
-  }catch(error){
-    res.status(500).json({ message: error.message });
+    try {
+      const component = await Component.findOne({ where: { uuid: componentId }, transaction });
 
-  }
+      if (component) {
+        await ComponentsQuantity.create(
+          {
+            componentUUID: componentId,
+            quantity,
+          },
+          {
+            transaction
+          }
+        );
+
+        await transaction.commit();
+
+        res.status(200).json({ message: "Quantity updated successfully" });
+      } else {
+        await transaction.rollback();
+        res.status(404).json({ message: "Component not found" });
+      }
+    } catch (error) {
+      await transaction.rollback();
+      console.log(error);
+      res.status(500).json({ message: error.message });
+    }
+  },
 
 
 
-
-}
 
 module.exports.getComponentById = async (req, res)=>{
     const id = req.params.id
@@ -281,3 +342,4 @@ module.exports.search =async(req, res)=>{
 
   }
 }
+
