@@ -343,3 +343,62 @@ module.exports.search =async(req, res)=>{
   }
 }
 
+
+
+module.exports.getComponentHistory = async (req, res) => {
+  const componentId = req.params.id;
+
+  try {
+    console.log(`Fetching history for component ID: ${componentId}`);
+    
+    if (!componentId) {
+      return res.status(400).json({ message: "Component ID is required" });
+    }
+
+    const history = await ComponentsQuantity.findAll({
+      where: { componentUUID: componentId },
+      include: [
+        {
+          model: Component,
+          attributes: ['status', 'condition']
+        }
+      ],
+      order: [['createdAt', 'DESC']]
+    });
+
+    console.log(`Found ${history.length} history records`);
+
+    if (!history || history.length === 0) {
+      return res.status(404).json({ message: "No history found for this component" });
+    }
+
+    const formattedHistory = history.map((record, index) => {
+      const prevRecord = history[index + 1];
+      const quantityChange = prevRecord ? record.quantity - prevRecord.quantity : record.quantity;
+      
+      return {
+        createdAt: record.createdAt,
+        action: quantityChange > 0 ? 'Added' : 'Removed',
+        quantityChange: Math.abs(quantityChange),
+        newTotalQuantity: record.quantity,
+        status: record.Component.status,
+        condition: record.Component.condition
+      };
+    });
+
+    res.status(200).json(formattedHistory);
+  } catch (error) {
+    console.error("Error in getComponentHistory:", error);
+    if (error.name === 'SequelizeConnectionError') {
+      return res.status(500).json({ message: "Database connection error" });
+    } else if (error.name === 'SequelizeQueryError') {
+      return res.status(500).json({ message: "Database query error" });
+    } else {
+      return res.status(500).json({ 
+        message: "Internal server error", 
+        error: error.message, 
+        stack: error.stack 
+      });
+    }
+  }
+};

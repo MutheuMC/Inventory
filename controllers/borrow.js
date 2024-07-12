@@ -6,7 +6,7 @@ module.exports.getBorrowers = async (req, res) => {
       include: [{
         model: Component,
         as: 'component',
-        attributes: ['componentName', 'partNumber', 'componentType', 'quantity', 'status', 'condition']
+        attributes: ['componentName', 'partNumber', 'componentType',  'status', 'condition']
       }]
     });
 
@@ -67,26 +67,15 @@ module.exports.postBorrowers = async (req, res) => {
   
       // Reduce the component quantity within the transaction
       const component = await Component.findOne({ where: { uuid: componentUUID }, transaction: t });
-  
-      if (!component) {
+
+       if (!component) {
         await t.rollback();
         return res.status(404).json({ message: "Component not found" });
       }
-  
-      if (component.quantity <= 0) {
-        await t.rollback();
-        return res.status(400).json({ message: "Insufficient component quantity" });
-      }
-  
-      component.quantity -= quantity;
 
-      console.log(component.quantity)
-  
-      // Update the status if the quantity is 0
-      if (component.quantity === 0) {
-        component.status = true;
+      if (component.partNumber){
+          component.status = true;
       }
-  
       await component.save({ transaction: t });
   
       await t.commit();
@@ -108,7 +97,7 @@ module.exports.postBorrowers = async (req, res) => {
         include: [{
           model: Component,
           as: 'component',
-          attributes: ['componentName', 'partNumber', 'componentType', 'quantity', 'status', 'condition']
+          attributes: ['componentName', 'partNumber', 'componentType', 'status', 'condition']
         }]
       })
 
@@ -133,3 +122,30 @@ const {} = req.body
       }
 
 }
+
+// In the borrow controller
+
+module.exports.getBorrowersByComponent = async (req, res) => {
+  const { componentUUID } = req.query;
+
+  try {
+    const borrowers = await BorrowedComponent.findAll({
+      where: { componentUUID },
+      include: [{
+        model: Component,
+        as: 'component',
+        attributes: ['componentName', 'partNumber', 'componentType', 'status', 'condition']
+      }],
+      order: [['dateOfIssue', 'DESC']]
+    });
+
+    if (!borrowers.length) {
+      return res.status(404).json({ message: "No borrow history found for this component" });
+    }
+
+    res.status(200).json(borrowers);
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ message: "Internal server error" });
+  }
+};
