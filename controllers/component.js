@@ -5,6 +5,8 @@ const { Op, fn, col } = require('sequelize');
 
 
 module.exports.getComponents = async (req, res) => {
+  // console.log("running")
+
   const componentType = req.params.componentsType;
   const partNumber = req.query.q;
 
@@ -27,18 +29,26 @@ module.exports.getComponents = async (req, res) => {
       });
     }
 
+    // Log the components object for debugging
+    console.log("Fetched Components:", components);
+
     if (!components || components.rows.length === 0) {
-      return res.status(404).json({ "message": "No components Found" });
+      return res.status(404).json({ "message": "No components found" });
     }
 
+    // Map over components to add `totalQuantity`, `borrowedQuantity`, and `remainingQuantity`
     const componentData = await Promise.all(components.rows.map(async (component) => {
+      // Get the total quantity of the component
       const totalQuantityResult = await ComponentsQuantity.sum('quantity', {
         where: { componentUUID: component.uuid }
       });
+      
+      // Get the total borrowed quantity of the component
       const borrowedQuantityResult = await BorrowedComponent.sum('quantity', {
         where: { componentUUID: component.uuid }
       });
 
+      // Calculate `totalQuantity`, `borrowedQuantity`, and `remainingQuantity`
       const totalQuantity = totalQuantityResult || 0;
       const borrowedQuantity = borrowedQuantityResult || 0;
       const remainingQuantity = totalQuantity - borrowedQuantity;
@@ -51,9 +61,13 @@ module.exports.getComponents = async (req, res) => {
       };
     }));
 
+    // Log the final data to be sent in the response
+    console.log("Component Data:", { count: components.count, rows: componentData });
+
+    // Send the response with the component data
     res.status(200).json({ count: components.count, rows: componentData });
   } catch (error) {
-    console.error(error);
+    console.error("Error fetching components:", error);
     res.status(500).json({ "message": "Internal server error" });
   }
 };
@@ -63,6 +77,7 @@ module.exports.getComponents = async (req, res) => {
 module.exports.getComponentsType = async (req, res) => {
   const name = req.query.q;
   let components;
+  console.log("running")
 
   try {
     if (name) {
