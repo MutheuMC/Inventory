@@ -4,6 +4,9 @@ const { Component, ComponentsQuantity, BorrowedComponent, sequelize  }  = requir
 const { Op, fn, col } = require('sequelize');
 
 
+
+
+
 module.exports.getComponents = async (req, res) => {
   // console.log("running")
 
@@ -74,6 +77,45 @@ module.exports.getComponents = async (req, res) => {
 
 
 
+module.exports.updateComponentQuantity = async (req, res) => {
+    const componentId = req.params.id;
+    // console.log(c)
+    const { quantity } = req.body;
+
+    console.log("Component ID: ", componentId);
+
+    const transaction = await sequelize.transaction();
+
+    try {
+      const component = await Component.findOne({ where: { uuid: componentId }, transaction });
+
+      if (component) {
+        await ComponentsQuantity.create(
+          {
+            componentUUID: componentId,
+            quantity,
+          },
+          {
+            transaction
+          }
+        );
+
+        await transaction.commit();
+
+        res.status(200).json({ message: "Quantity updated successfully" });
+      } else {
+        await transaction.rollback();
+        res.status(404).json({ message: "Component not found" });
+      }
+    } catch (error) {
+      await transaction.rollback();
+      console.log(error);
+      res.status(500).json({ message: error.message });
+    }
+  },
+
+
+
 module.exports.getComponentsType = async (req, res) => {
   const name = req.query.q;
   let components;
@@ -137,6 +179,7 @@ module.exports.getComponentsType = async (req, res) => {
     }));
 
     if (result.length > 0) {
+      console.log(result)
       res.status(200).json(result);
     } else {
       res.status(404).json({ message: "No components found" });
@@ -234,27 +277,44 @@ module.exports.updateComponent = async (req, res) => {
   }
 };
 
-module.exports.updateComponentQuantity = async (req, res)=>{
-  const componentId = req.params.id;
-  const quantity = req.body.quantity
+module.exports.updateComponentQuantity= async (req, res) => {
+    const componentId = req.params.id;
+    const { quantity } = req.body;
 
-  try{
-  const quantityEntry = await ComponentsQuantity.create({componentId, quantity})
-  if(!quantityEntry){
-    res.status(400).json({message: "Cannot create  quantity"})
-  }
+    console.log("Component ID: ", componentId);
 
-  res.status(200).json({message : "quantity created successfully"})
+    const transaction = await sequelize.transaction();
 
-  }catch(error){
-    res.status(500).json({ message: error.message });
+    try {
+      const component = await Component.findOne({ where: { uuid: componentId }, transaction });
 
-  }
+      if (component) {
+        await ComponentsQuantity.create(
+          {
+            componentUUID: componentId,
+            quantity,
+          },
+          {
+            transaction
+          }
+        );
+
+        await transaction.commit();
+
+        res.status(200).json({ message: "Quantity updated successfully" });
+      } else {
+        await transaction.rollback();
+        res.status(404).json({ message: "Component not found" });
+      }
+    } catch (error) {
+      await transaction.rollback();
+      console.log(error);
+      res.status(500).json({ message: error.message });
+    }
+  },
 
 
 
-
-}
 
 module.exports.getComponentById = async (req, res)=>{
     const id = req.params.id
@@ -296,3 +356,63 @@ module.exports.search =async(req, res)=>{
 
   }
 }
+
+
+
+module.exports.getComponentHistory = async (req, res) => {
+  const componentId = req.params.id;
+
+  try {
+    console.log(`Fetching history for component ID: ${componentId}`);
+    
+    if (!componentId) {
+      return res.status(400).json({ message: "Component ID is required" });
+    }
+
+    const history = await ComponentsQuantity.findAll({
+      where: { componentUUID: componentId },
+      include: [
+        {
+          model: Component,
+          attributes: ['status', 'condition']
+        }
+      ],
+      order: [['createdAt', 'DESC']]
+    });
+
+    console.log(`Found ${history.length} history records`);
+
+    if (!history || history.length === 0) {
+      return res.status(404).json({ message: "No history found for this component" });
+    }
+
+    const formattedHistory = history.map((record, index) => {
+      const prevRecord = history[index + 1];
+      const quantityChange = prevRecord ? record.quantity - prevRecord.quantity : record.quantity;
+      
+      return {
+        createdAt: record.createdAt,
+        action: quantityChange > 0 ? 'Added' : 'Removed',
+        quantityChange: Math.abs(quantityChange),
+        newTotalQuantity: record.quantity,
+        status: record.Component.status,
+        condition: record.Component.condition
+      };
+    });
+
+    res.status(200).json(formattedHistory);
+  } catch (error) {
+    console.error("Error in getComponentHistory:", error);
+    if (error.name === 'SequelizeConnectionError') {
+      return res.status(500).json({ message: "Database connection error" });
+    } else if (error.name === 'SequelizeQueryError') {
+      return res.status(500).json({ message: "Database query error" });
+    } else {
+      return res.status(500).json({ 
+        message: "Internal server error", 
+        error: error.message, 
+        stack: error.stack 
+      });
+    }
+  }
+};
