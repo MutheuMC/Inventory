@@ -10,7 +10,8 @@ module.exports = (sequelize, DataTypes) => {
       });
       Component.hasMany(models.ComponentsQuantity, {
         foreignKey: 'componentUUID',
-        sourceKey: 'uuid'
+        sourceKey: 'uuid',
+        as: 'ComponentsQuantities'
       });
     }
   }

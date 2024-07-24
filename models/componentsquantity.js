@@ -4,20 +4,20 @@ const {
 } = require('sequelize');
 module.exports = (sequelize, DataTypes) => {
   class ComponentsQuantity extends Model {
-    /**
-     * Helper method for defining associations.
-     * This method is not a part of Sequelize lifecycle.
-     * The `models/index` file will call this method automatically.
-     */
     static associate(models) {
-      // define association here
+      // Define association here
+      ComponentsQuantity.belongsTo(models.Component, {
+        foreignKey: 'componentUUID',
+        targetKey: 'uuid',
+        as: 'Component'
+      });
     }
   }
   ComponentsQuantity.init({
     uuid: {
       allowNull: true,
       type: DataTypes.UUID,
-      defaultValue:Sequelize.literal('uuid_generate_v4()'),
+      defaultValue: Sequelize.literal('uuid_generate_v4()'),
       primaryKey: true,
     },
     componentUUID: {
@@ -28,7 +28,7 @@ module.exports = (sequelize, DataTypes) => {
       },
       allowNull: false
     },
-    quantity:{
+    quantity: {
       type: DataTypes.INTEGER
     },
     createdAt: {

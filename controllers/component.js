@@ -132,6 +132,7 @@ module.exports.getComponentsType = async (req, res) => {
         include: [
           {
             model: ComponentsQuantity,
+            as: 'ComponentsQuantities', 
             attributes: [],  // No need to include quantity data from this join
           },
           {
@@ -158,6 +159,7 @@ module.exports.getComponentsType = async (req, res) => {
         include: [
           {
             model: ComponentsQuantity,
+            as: 'ComponentsQuantities',
             attributes: [],  // No need to include quantity data from this join
           },
           {
@@ -357,13 +359,27 @@ module.exports.search =async(req, res)=>{
   }
 }
 
+// module.exports.getComponentHistory = async (req, res)=>{
+//   const componentUUID = req.params.id;
+
+//   try{
+//         const history = await ComponentsQuantity.findAll({
+//       where: { componentUUID},
+//         })
+
+//         res.status(200).json(history)
+
+//   }catch(error){
+//     console.log(error)
+//   }
+// }
 
 
 module.exports.getComponentHistory = async (req, res) => {
   const componentId = req.params.id;
+  console.log(componentId)
 
   try {
-    console.log(`Fetching history for component ID: ${componentId}`);
     
     if (!componentId) {
       return res.status(400).json({ message: "Component ID is required" });
@@ -374,6 +390,7 @@ module.exports.getComponentHistory = async (req, res) => {
       include: [
         {
           model: Component,
+          as: 'Component',
           attributes: ['status', 'condition']
         }
       ],
@@ -416,3 +433,5 @@ module.exports.getComponentHistory = async (req, res) => {
     }
   }
 };
+
+
